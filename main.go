@@ -3,22 +3,86 @@ package main
 import (
 	"fmt"
 	"github.com/gocolly/colly"
+	"github.com/urfave/cli/v2"
+	"os"
 	"strings"
 )
 
+type DataFull struct {
+	Iterator int
+	Data Data
+}
+
+type Data struct {
+	Title string
+	Magnet string
+	Torrent string
+}
+
+
 func main() {
+	(&cli.App{
+		Name: "NyaaLoader",
+		Usage: "An efficient Nyaa scraper",
+		Commands: []*cli.Command{
+			{
+				Name: "search",
+				Aliases: []string{"s"},
+				Usage: "Search term",
+				Action: func(c *cli.Context) error {
+					fmt.Println("Searching:", c.Args().First())
+					Search(c.Args().First())
+					return nil
+				},
+			},
+		},
+	}).Run(os.Args)
 	fmt.Println("Ay Yo, we bootin here!")
+
+
+	//c.Visit("https://nyaa.si/")
+
+}
+
+func Search(term string)  {
+
+	var DataList []Data
+
 	c := colly.NewCollector()
 
-	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
-		link := e.Attr("href")
-		if strings.Contains(link, "magnet:") {
-			fmt.Printf("Magnet %s\n", link)
-		}
+	c.OnHTML(".torrent-list tbody", func(e *colly.HTMLElement) {
+		e.ForEach("tr", func(i int, element *colly.HTMLElement) {
+			data := Data{"", "", ""}
+			element.ForEach("td a:not(.comments)", func(ii int, a *colly.HTMLElement) {
+				if ii == 1 {
+					data.Title = a.Text
+					//fmt.Printf("Title: %s\n", a.Text)
+				}
+				MagLink := a.Attr("href")
+				if strings.Contains(MagLink, "magnet:") {
+					data.Magnet = MagLink
+					//fmt.Printf("Magnet: %s\n", MagLink)
+				}
+				data.Torrent = ""
+				//if strings.Contains(MagLink, ".torrent") {
+				//	data.Torrent = MagLink
+				//	fmt.Printf("Torrent: %s\n", MagLink)
+				//}
+			})
+			res := append(DataList, data)
+
+			fmt.Printf("Data: %s\n", res)
+		})
+		//link := e.ForEach("td")
+
 	})
 
-	c.Visit("https://nyaa.si/")
 
+
+	err := c.Visit("https://nyaa.si/?q=" + term)
+	if err != nil {
+		return
+	}
 }
 /*
 Returns:
